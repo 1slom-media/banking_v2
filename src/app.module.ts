@@ -11,6 +11,8 @@ import { BalanceModule } from './balance/balance.module';
 import { DavrBalanceEntity } from './balance/davrbank/entities/balance.entity';
 import { ExtractModule } from './extract/extract.module';
 import { DavrExtractEntity } from './extract/davrbank/entities/extract.entity';
+import { PaymentsModule } from './payments/payments.module';
+import { DavrPaymentsEntity } from './payments/davrbank/entities/payments.entity';
 
 @Module({
   imports: [
@@ -18,14 +20,19 @@ import { DavrExtractEntity } from './extract/davrbank/entities/extract.entity';
     ScheduleModule.forRoot(),
     // Birinchi ma'lumotlar bazasi ulanishi
     TypeOrmModule.forRoot({
-      name:'main',
+      name: 'main',
       type: 'postgres',
       host: process.env.PG_HOST,
       port: parseInt(process.env.PG_PORT),
       username: process.env.PG_USER,
       password: process.env.PG_PASSWORD,
       database: process.env.PG_DATABASE,
-      entities: [AuthEntity,DavrBalanceEntity,DavrExtractEntity],
+      entities: [
+        AuthEntity,
+        DavrBalanceEntity,
+        DavrExtractEntity,
+        DavrPaymentsEntity,
+      ],
       synchronize: true,
     }),
     // Ikkinchi ma'lumotlar bazasi ulanishi
@@ -44,8 +51,8 @@ import { DavrExtractEntity } from './extract/davrbank/entities/extract.entity';
     AuthModule,
     GlobalApiModule,
     BalanceModule,
-    ExtractModule
-
+    ExtractModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
