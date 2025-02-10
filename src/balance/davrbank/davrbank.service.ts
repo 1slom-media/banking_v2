@@ -20,6 +20,9 @@ export class DavrbankBalanceService {
 
   async updateDavrBalance() {
     try {
+      // const response = await this.apiClient.get(
+      //   '/api/v1.0/allgood/allaccounts/00981/05474855',
+      // );
       const response = await this.apiClient.get(
         '/api/v1.0/allgood/allaccounts/00981/04316044',
       );

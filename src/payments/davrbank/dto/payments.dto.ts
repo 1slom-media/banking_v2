@@ -199,7 +199,7 @@ export class FetchDavrPaymentDto {
   @IsString()
   branch: string;
 
-  @ApiProperty({ example: '04316044' })
+  @ApiProperty({ example: '05474855' })
   @IsString()
   client_id: string;
 

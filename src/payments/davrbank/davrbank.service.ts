@@ -25,10 +25,14 @@ export class DavrbankPaymentService {
 
   async fetchDavrPayment(data: FetchDavrPaymentDto) {
     try {
+      console.log(data,"dt");
+      
       const response = await this.apiClient.post(
         '/api/v1.0/allgood/alldoclist',
         data,
       );
+      console.log(response,"res vpis");
+      
 
       const { status, result } = response.data;
 

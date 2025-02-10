@@ -14,6 +14,7 @@ export class PaymentsController {
     return await this.paymentService.getDavrStatusById(parseInt(id));
   }
 
+  @ApiOperation({summary:"Список платежей клиента ALLGOOD"})
   @Post('davr')
   async davrPayments(@Body() requestData: FetchDavrPaymentDto) {
     return await this.paymentService.getDavrPayments(requestData);

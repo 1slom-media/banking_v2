@@ -74,27 +74,27 @@ export class DavrExtractDto {
 }
 
 export class FetchDavrExtractDto {
-  @ApiProperty({ required: false, example: null })
+  @ApiProperty({ required: false, example: "28.01.2025" })
   @IsOptional()
   @IsString()
   begin_dat: string | null;
 
-  @ApiProperty({ required: false, example: null })
+  @ApiProperty({ required: false, example: "29.01.2025" })
   @IsOptional()
   @IsString()
   end_dat: string | null;
 
-  @ApiProperty({ required: false, example: null })
+  @ApiProperty({ required: false, example: "20208000605474855004" })
   @IsOptional()
   @IsString()
   acc: string | null;
 
-  @ApiProperty({ required: false, example: null })
+  @ApiProperty({ required: false, example: "%" })
   @IsOptional()
   @IsString()
   acc_co: string | null;
 
-  @ApiProperty({ required: false, example: null })
+  @ApiProperty({ required: false, example: "%", })
   @IsOptional()
   @IsString()
   bank_co: string | null;
@@ -104,7 +104,7 @@ export class FetchDavrExtractDto {
   @IsString()
   pdc: string | null;
 
-  @ApiProperty({ required: false, example: null })
+  @ApiProperty({ required: false, example: "00981" })
   @IsOptional()
   @IsString()
   branch: string | null;

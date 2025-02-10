@@ -13,6 +13,12 @@ import { ExtractModule } from './extract/extract.module';
 import { DavrExtractEntity } from './extract/davrbank/entities/extract.entity';
 import { PaymentsModule } from './payments/payments.module';
 import { DavrPaymentsEntity } from './payments/davrbank/entities/payments.entity';
+import { TransactionsModule } from './transactions/transactions.module';
+import { BankingTransactionEntity } from './transactions/entities/transaction.entity';
+import { AllgoodPropModule } from './allgood-prop/allgood-prop.module';
+import { AllgoodPropEntity } from './allgood-prop/entities/allgood-prop';
+import { DavrPayloadEntity } from './transactions/entities/payload.entity';
+import { CashLogEntity } from './transactions/entities/cashtx';
 
 @Module({
   imports: [
@@ -32,6 +38,10 @@ import { DavrPaymentsEntity } from './payments/davrbank/entities/payments.entity
         DavrBalanceEntity,
         DavrExtractEntity,
         DavrPaymentsEntity,
+        BankingTransactionEntity,
+        AllgoodPropEntity,
+        DavrPayloadEntity,
+        CashLogEntity
       ],
       synchronize: true,
     }),
@@ -53,6 +63,8 @@ import { DavrPaymentsEntity } from './payments/davrbank/entities/payments.entity
     BalanceModule,
     ExtractModule,
     PaymentsModule,
+    TransactionsModule,
+    AllgoodPropModule,
   ],
   controllers: [AppController],
   providers: [AppService],
