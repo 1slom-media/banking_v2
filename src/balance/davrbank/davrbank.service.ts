@@ -24,7 +24,7 @@ export class DavrbankBalanceService {
       //   '/api/v1.0/allgood/allaccounts/00981/05474855',
       // );
       const response = await this.apiClient.get(
-        '/api/v1.0/allgood/allaccounts/00981/04316044',
+        '/api/v1.0/allgood/allaccounts/00981/05474855',
       );
 
       const { status, result } = response.data;
