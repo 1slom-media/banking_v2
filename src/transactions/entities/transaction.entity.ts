@@ -95,11 +95,14 @@ export class BankingTransactionEntity {
   @Column({ nullable: true })
   vid_id: number;
 
-  @Column({ nullable: true,type:"bigint" })
+  @Column({ nullable: true, type: 'bigint' })
   bank_id: number;
 
   @Column({ nullable: true })
   numm_doc: number;
+
+  @Column({ default: 'auto' })
+  who: string;
 
   @Column('json', { nullable: true })
   response: object;

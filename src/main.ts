@@ -15,6 +15,7 @@ async function bootstrap() {
     .setTitle('Banking swagger api documentation')
     .setDescription('The  API description')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   const Document = SwaggerModule.createDocument(app, options, {
     include: [],

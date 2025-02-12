@@ -16,6 +16,7 @@ import { CreateDavrPayloadDto } from './dto/payload';
 import { DavrPayloadEntity } from './entities/payload.entity';
 import { generateUniqueId } from '../utils/unique-id';
 import { CashLogEntity } from './entities/cashtx';
+import { Request } from 'express';
 
 @Injectable()
 export class TransactionsService {
@@ -126,10 +127,8 @@ export class TransactionsService {
     return [];
   }
 
-
-
   // davrbank transaction metod ==>> ruchnoy pravodka
-  async sendDavrTransaction(data: CreateDavrPayloadDto) {
+  async sendDavrTransaction(data: CreateDavrPayloadDto, req: Request) {
     const findLog = await this.cashLog.findOneBy({
       application_id: Number(data.vnum_doc),
     });
@@ -163,6 +162,7 @@ export class TransactionsService {
       amount: data.vsumma,
       numm_doc: Number(data.vnum_doc),
       request: payload,
+      who: req.user.name,
     };
     await this.cashLog.save(log);
     try {
@@ -180,7 +180,12 @@ export class TransactionsService {
           updatedAt: new Date(),
         },
       );
-      const entityData = { ...data, response: response.data, vid: result.vidk };
+      const entityData = {
+        ...data,
+        response: response.data,
+        vid: result.vidk,
+        who: req.user.name,
+      };
       const davrPay = this.davrPayloadRepository.create(entityData);
       return await this.davrPayloadRepository.save(davrPay);
     } catch (error) {
@@ -289,10 +294,8 @@ export class TransactionsService {
     return response.data;
   }
 
-
-
   // application_id bilan pravotka
-  async sendDavrTransactionByAppId(id: number) {
+  async sendDavrTransactionByAppId(id: number, req: Request) {
     const allgoodProps = await this.allgoodPropRepository.findOneByBank(1);
     if (!allgoodProps) {
       throw new NotFoundException('Active rekvizitlar topilmadi');
@@ -346,6 +349,7 @@ export class TransactionsService {
       amount: parseFloat(report.price),
       numm_doc: uniqueNumDoc,
       request: payload,
+      who: req.user.name,
     };
     await this.cashLog.save(log);
 
@@ -353,7 +357,7 @@ export class TransactionsService {
       const response = await this.apiClient.post(
         '/api/v1.0/allgood/allepc',
         payload,
-      );   
+      );
       const { result } = response.data;
 
       await this.cashLog.update(
@@ -375,6 +379,7 @@ export class TransactionsService {
           p_status: 'waiting',
           numm_doc: uniqueNumDoc,
           updatedAt: new Date(),
+          who: req.user.name,
         },
       );
       return response.data;
@@ -405,6 +410,7 @@ export class TransactionsService {
             p_status: 'failed',
             numm_doc: uniqueNumDoc, // Xato bo‘lsa ham saqlab qolish
             updatedAt: new Date(),
+            who: req.user.name,
           },
         );
 
@@ -420,8 +426,6 @@ export class TransactionsService {
       throw new BadRequestException(formattedError);
     }
   }
-
-
 
   // ----------------------------------------------------------------------------------------------------------------------------
   // avtomat pravotka

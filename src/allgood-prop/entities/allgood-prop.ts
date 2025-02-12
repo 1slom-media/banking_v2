@@ -40,6 +40,10 @@ export class AllgoodPropEntity {
   @IsString()
   status: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  @IsString()
+  who: string;
+
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

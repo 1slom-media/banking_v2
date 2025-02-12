@@ -29,6 +29,9 @@ export class CashLogEntity {
   @Column({ nullable: true })
   numm_doc: number;
 
+  @Column({ nullable: true, default: 'auto' })
+  who: string;
+
   @Column('json', { nullable: true })
   request: object;
 

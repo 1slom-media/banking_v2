@@ -71,6 +71,9 @@ export class DavrPayloadEntity {
   @Column({ default: 2905 })
   vparentid: number;
 
+  @Column({ nullable: true, default: 'auto' })
+  who: string;
+
   @Column('json', { nullable: true })
   response: object;
 

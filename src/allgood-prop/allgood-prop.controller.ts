@@ -1,8 +1,21 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AllgoodPropService } from './allgood-prop.service';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AllgoodPropDto } from './dto/allgood-prop';
+import { JwtAuthGuard } from '../auth/auth.guard';
+import { Request } from 'express';
 
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @ApiTags('Allgood Prop schotlari')
 @Controller('allgood-prop')
 export class AllgoodPropController {
@@ -21,13 +34,13 @@ export class AllgoodPropController {
   }
 
   @Post()
-  async createProp(@Body() data: AllgoodPropDto) {
-    return await this.propService.create(data);
+  async createProp(@Body() data: AllgoodPropDto, @Req() req: Request) {
+    return await this.propService.create(data, req);
   }
 
   @ApiOperation({ summary: "Shotni deactive holatga o'tkazish" })
   @Delete(':id')
-  async deactiveProp(@Param('id') id: string) {
-    return await this.propService.deleteProp(id);
+  async deactiveProp(@Param('id') id: string, @Req() req: Request) {
+    return await this.propService.deleteProp(id, req);
   }
 }

@@ -19,6 +19,7 @@ import { AllgoodPropModule } from './allgood-prop/allgood-prop.module';
 import { AllgoodPropEntity } from './allgood-prop/entities/allgood-prop';
 import { DavrPayloadEntity } from './transactions/entities/payload.entity';
 import { CashLogEntity } from './transactions/entities/cashtx';
+import { UserEntity } from './auth/entities/user.entity';
 
 @Module({
   imports: [
@@ -41,7 +42,8 @@ import { CashLogEntity } from './transactions/entities/cashtx';
         BankingTransactionEntity,
         AllgoodPropEntity,
         DavrPayloadEntity,
-        CashLogEntity
+        CashLogEntity,
+        UserEntity
       ],
       synchronize: true,
     }),

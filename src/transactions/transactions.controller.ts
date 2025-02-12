@@ -1,8 +1,12 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
-import { ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { CreateDavrPayloadDto } from './dto/payload';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { Request } from 'express';
 
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('transactions')
 export class TransactionsController {
   constructor(private readonly billingReportService: TransactionsService) {}
@@ -33,13 +37,13 @@ export class TransactionsController {
 
   @ApiOperation({ summary: "Application id bo`yicha tranzaktsiya o'tkazish" })
   @Get('davr/create/:id')
-  async createDavrByAppId(@Param('id') id: number) {
-    return this.billingReportService.sendDavrTransactionByAppId(id);
+  async createDavrByAppId(@Param('id') id: number,@Req() req: Request) {
+    return this.billingReportService.sendDavrTransactionByAppId(id,req);
   }
 
   @ApiOperation({ summary: 'Ruchnoy tranzaktsiya yaratish' })
   @Post('davr/send')
-  async davrSendTransaction(@Body() data: CreateDavrPayloadDto) {
-    return this.billingReportService.sendDavrTransaction(data);
+  async davrSendTransaction(@Body() data: CreateDavrPayloadDto,@Req() req: Request) {
+    return this.billingReportService.sendDavrTransaction(data,req);
   }
 }
