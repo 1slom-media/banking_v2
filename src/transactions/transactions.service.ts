@@ -52,17 +52,23 @@ export class TransactionsService {
       COALESCE(m.address, m2.address) AS address,
       COALESCE(m.name, m2.name) AS merchant_name,
       COALESCE(m.inn, m2.inn) AS merchant_inn,
-      b.name AS branch_name
-  FROM billing_reports br
-  LEFT JOIN merchant m 
-      ON m.id = br.merchant_id AND br.merchant_id > 0
-  LEFT JOIN branchs b 
-      ON b.id = br.branch_id AND (br.merchant_id IS NULL OR br.merchant_id = 0)
-  LEFT JOIN merchant m2
-      ON m2.id = b."merchantId"
-  WHERE 
-      DATE(br.created_at) = CURRENT_DATE - INTERVAL '1 day'
-      AND br.status IN ('BillingSuccess', 'money_transferred');
+      b.name AS branch_name,
+      (SELECT c.category 
+       FROM public.merchant_category mc
+       JOIN public.categories c ON mc.category_id = c.id
+       WHERE mc.merchant_id = COALESCE(m.id, m2.id)
+       ORDER BY mc.category_id 
+       LIMIT 1) AS category
+FROM billing_reports br
+LEFT JOIN merchant m 
+    ON m.id = br.merchant_id AND br.merchant_id > 0
+LEFT JOIN branchs b 
+    ON b.id = br.branch_id AND (br.merchant_id IS NULL OR br.merchant_id = 0)
+LEFT JOIN merchant m2
+    ON m2.id = b."merchantId"
+WHERE 
+    DATE(br.created_at) = CURRENT_DATE - INTERVAL '1 day'
+    AND br.status IN ('BillingSuccess', 'money_transferred');
       `;
     const reports: any[] = await reportsRepo.query(query);
 
@@ -92,6 +98,7 @@ export class TransactionsService {
       address: item.address,
       merchant_name: item.merchant_name,
       branch_name: item.branch_name,
+      category: item.category,
       merchant_inn: item.merchant_inn,
     }));
 
@@ -333,9 +340,8 @@ export class TransactionsService {
       vname_cr: report.merchant_name,
       vinn_cr: report.merchant_inn,
       vsumma: parseFloat(report.price),
-      vnaz_pla:
-        'за услуги сог договора ALG-59 по рассрочки "Бытовая техника" ALTIBOYEVA MAVLUDA ID53419',
-      vnum_doc: `${uniqueNumDoc}`, // Yangi generatsiya qilingan ID
+      vnaz_pla: `за услуги сог договора ${report?.contract_no} по рассрочки "${report?.category}" ${report?.name} ID${report?.backend_application_id}`,
+      vnum_doc: `${uniqueNumDoc}`,
       vcode_naz_pla: '00668',
       vbudget_account: '',
       vbudget_inn: '',

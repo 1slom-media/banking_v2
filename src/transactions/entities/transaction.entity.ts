@@ -90,6 +90,9 @@ export class BankingTransactionEntity {
   branch_name: string;
 
   @Column({ nullable: true })
+  category: string;
+
+  @Column({ nullable: true })
   merchant_inn: string;
 
   @Column({ nullable: true })

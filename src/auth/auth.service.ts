@@ -63,7 +63,7 @@ export class AuthService {
   
 
   // @Cron('50 10 15 * * *')
-  // @Cron('0 54 14 * * *')
+  @Cron('30 11 * * *')
   async refreshToken() {
     // find auth
     const auth = await this.authRepo.findOneBy({ id: String(1) });

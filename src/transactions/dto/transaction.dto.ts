@@ -106,6 +106,10 @@ export class BankingTransactionDto {
 
   @IsOptional()
   @IsString()
+  category?: string;
+
+  @IsOptional()
+  @IsString()
   merchant_inn?: string;
 
   @IsOptional()
