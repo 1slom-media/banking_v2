@@ -107,6 +107,9 @@ export class BankingTransactionEntity {
   @Column({ default: 'auto' })
   who: string;
 
+  @Column({ nullable: true })
+  responseText: string;
+
   @Column('json', { nullable: true })
   response: object;
 

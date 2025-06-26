@@ -21,6 +21,7 @@ import { DavrPayloadEntity } from './entities/payload.entity';
 import { generateUniqueId } from '../utils/unique-id';
 import { CashLogEntity } from './entities/cashtx';
 import { Request } from 'express';
+import { AnorStateMap } from 'src/utils/anor-state';
 
 @Injectable()
 export class TransactionsService {
@@ -210,78 +211,17 @@ WHERE
     return [];
   }
 
-  // get davr by id status and update
-  async findAndUpdateDavrStatus(id: number, type: string) {
-    const response = await this.apiClient.get(
-      `/api/v1.0/allgood/allstate/${id}`,
-    );
-    console.log(type, 'ty');
-    const { pid, name } = response.data.result;
-    if ((type = 'vid')) {
-      // 1. davrPayloadRepository da qidiring
-      const davrRecord = await this.davrPayloadRepository.findOneBy({
-        vid: id,
-      });
-
-      if (davrRecord) {
-        await this.davrPayloadRepository.update(
-          { vid: id },
-          {
-            bank_id: pid,
-            response: response.data,
-            updatedAt: new Date(),
-          },
-        );
-      }
-
-      const bankingRecord = await this.bankingRepository.findOneBy({
-        vid_id: id,
-      });
-
-      if (bankingRecord) {
-        await this.bankingRepository.update(
-          { vid_id: id },
-          {
-            bank_id: pid,
-            response: response.data,
-            updatedAt: new Date(),
-          },
-        );
-      }
-    } else if ((type = 'pid')) {
-      const status = name == 'Проведен' ? 'success' : name;
-      const davrRecord = await this.davrPayloadRepository.findOneBy({
-        bank_id: id,
-      });
-
-      if (davrRecord) {
-        await this.davrPayloadRepository.update(
-          { bank_id: id },
-          {
-            p_status: status,
-            response: response.data,
-            updatedAt: new Date(),
-          },
-        );
-      }
-
-      const bankingRecord = await this.bankingRepository.findOneBy({
-        bank_id: id,
-      });
-
-      if (bankingRecord) {
-        await this.bankingRepository.update(
-          { bank_id: id },
-          {
-            p_status: status,
-            response: response.data,
-            updatedAt: new Date(),
-          },
-        );
-      }
+  // get davr or anor by id status and update
+  async findAndUpdateStatus(id: number, provider: string): Promise<any> {
+    console.log(id, provider);
+    if (provider == 'DAVRBANK') {
+      console.log('d');
+      return await this.davrCheckAndUpdateStatus(id);
     }
-
-    return response.data;
+    if (provider == 'ANORBANK') {
+      console.log('a');
+      return this.anorCheckAndUpdateStatus(id);
+    }
   }
 
   // anorbank transaction metod ==>> ruchnoy pravodka
@@ -342,6 +282,7 @@ WHERE
       amount: data.amount,
       fromAccount: data.fromAccount,
       toAccount: data.toAccount,
+      toMfo: data.toMfo,
       naz_pla: data.comment,
       bank: 'ANORBANK',
       numm_doc: Number(uniqueNumDoc),
@@ -440,6 +381,7 @@ WHERE
       amount: parseFloat(report.price),
       fromAccount: allgoodProps.account,
       toAccount: report.bank_account,
+      toMfo: report.mfo,
       naz_pla: `за услуги сог договора ${report?.contract_no} по рассрочки "${report?.category}" ${report?.name} ID${report?.backend_application_id}`,
       bank: 'ANORBANK',
       numm_doc: uniqueNumDoc,
@@ -735,6 +677,160 @@ WHERE
       };
       throw new BadRequestException(formattedError);
     }
+  }
+
+  async anorCheckAndUpdateStatus(id: number): Promise<any> {
+    const cashLog = await this.cashLog.findOneBy({ numm_doc: id });
+    if (!cashLog) {
+      throw new NotFoundException(`CashLog with numm_doc ${id} not found`);
+    }
+
+    const bankingRecord = await this.bankingRepository.findOneBy({
+      numm_doc: id,
+    });
+
+    const transId = cashLog.vid_id;
+    const groupId = cashLog.toMfo === '01183' ? 0 : 4;
+
+    const payload = {
+      id: 1,
+      jsonrpc: '2.0',
+      method: 'nci.transactionStatus.get',
+      params: {
+        request: {
+          transId,
+          groupId,
+        },
+      },
+    };
+    const response = await this.apiClientAnor.post('/services', payload);
+    const result = response.data?.result[0];
+    if (!result || typeof result.STATE !== 'number') {
+      throw new Error('Invalid response from ANOR API');
+    }
+
+    const state = result.STATE;
+    const successStates = [3, 8, 50];
+    const stateText = AnorStateMap[state] || `Nomaʼlum holat: ${state}`;
+    const now = new Date();
+
+    if (successStates.includes(state)) {
+      await this.cashLog.update(
+        { numm_doc: id },
+        {
+          status: 'success',
+          updatedAt: now,
+          response: result,
+          responseText: stateText,
+        },
+      );
+
+      if (bankingRecord) {
+        await this.bankingRepository.update(
+          { numm_doc: id },
+          {
+            p_status: 'success',
+            updatedAt: now,
+            response: result,
+            responseText: stateText,
+          },
+        );
+      }
+    } else {
+      await this.cashLog.update(
+        { numm_doc: id },
+        {
+          responseText: stateText,
+          updatedAt: now,
+          response: result,
+        },
+      );
+
+      if (bankingRecord) {
+        await this.bankingRepository.update(
+          { numm_doc: id },
+          {
+            responseText: stateText,
+            updatedAt: now,
+            response: result,
+          },
+        );
+      }
+    }
+
+    return {
+      success: true,
+      message: stateText,
+    };
+  }
+
+  // davrbank status find and update
+  async davrCheckAndUpdateStatus(id: number) {
+    let sourceType: 'davr' | 'banking' | null = null;
+    let record: any = null;
+
+    // 1. davrPayloadRepository da qidiring
+    const davrRecord = await this.davrPayloadRepository.findOneBy({
+      vnum_doc: id,
+    });
+
+    if (davrRecord) {
+      sourceType = 'davr';
+      record = davrRecord;
+    } else {
+      const bankingRecord = await this.bankingRepository.findOneBy({
+        numm_doc: id,
+      });
+
+      if (bankingRecord) {
+        sourceType = 'banking';
+        record = bankingRecord;
+      }
+    }
+
+    if (!record || !sourceType) {
+      throw new NotFoundException(`Record with doc id ${id} not found`);
+    }
+
+    // 2. Qaysi field bilan API chaqilishini aniqlaymiz
+    const bank_id = record.bank_id;
+    const apiField = bank_id ? 'pid' : sourceType === 'davr' ? 'vid' : 'vid_id';
+    const apiId = bank_id || record[apiField];
+
+    const response = await this.apiClient.get(
+      `/api/v1.0/allgood/allstate/${apiId}`,
+    );
+    const { pid, name } = response.data.result;
+
+    // 3. statusni aniqlaymiz
+    const status = name === 'Проведен' ? 'success' : name;
+
+    const updateFields =
+      bank_id || pid
+        ? {
+            bank_id: pid,
+            response: response.data,
+            updatedAt: new Date(),
+          }
+        : {
+            p_status: status,
+            response: response.data,
+            updatedAt: new Date(),
+          };
+
+    // 4. Mos tableni yangilash
+    if (sourceType === 'davr') {
+      const whereField = bank_id || pid ? { vnum_doc: id } : { bank_id: apiId };
+      await this.davrPayloadRepository.update(whereField, updateFields);
+    } else {
+      const whereField = bank_id || pid ? { numm_doc: id } : { bank_id: apiId };
+      await this.bankingRepository.update(whereField, updateFields);
+    }
+
+    return {
+      success: true,
+      message: name,
+    };
   }
 
   // ----------------------------------------------------------------------------------------------------------------------------

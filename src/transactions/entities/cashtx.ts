@@ -28,9 +28,15 @@ export class CashLogEntity {
 
   @Column({ nullable: true })
   toAccount: string;
+  
+  @Column({ nullable: true })
+  toMfo: string;
 
   @Column({ nullable: true })
   naz_pla: string;
+
+  @Column({ nullable: true })
+  responseText: string;
 
   @Column({ nullable: true })
   vid_id: number;

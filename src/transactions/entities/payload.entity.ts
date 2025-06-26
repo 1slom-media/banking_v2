@@ -51,7 +51,7 @@ export class DavrPayloadEntity {
   vnaz_pla: string;
 
   @Column()
-  vnum_doc: string;
+  vnum_doc: number;
 
   @Column({ default: '00668' })
   vcode_naz_pla: string;

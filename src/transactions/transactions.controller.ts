@@ -47,10 +47,10 @@ export class TransactionsController {
   }
 
   @ApiOperation({ summary: 'Tranzaktsiya holatini ko`rish va update qilish' })
-  @ApiQuery({ name: 'type', type: String })
-  @Get('davr/:id')
-  async findAndUpdateDavr(@Param('id') id: number, @Query() type: string) {
-    return this.billingReportService.findAndUpdateDavrStatus(id, type);
+  @ApiQuery({ name: 'provider', type: String })
+  @Get('status/:id')
+  async findAndUpdateDavr(@Param('id') id: number, @Query('provider') provider: string) {
+    return this.billingReportService.findAndUpdateStatus(id, provider);
   }
 
   @ApiOperation({

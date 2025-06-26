@@ -27,8 +27,8 @@ export const getApiClient = (
     (response) => response,
     async (error: AxiosError) => {
       const originalRequest = error.config as RetryRequestConfig;
-
       if (error.response?.status === 401 && !originalRequest._retry) {
+        console.log('401');
         originalRequest._retry = true;
 
         if (provider === 'ANORBANK') {
