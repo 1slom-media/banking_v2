@@ -376,6 +376,8 @@ WHERE
         },
       },
     };
+    console.log(payload,'sendAnorTransactionByAppId payload');
+    
     const log = {
       application_id: report.backend_application_id,
       amount: parseFloat(report.price),
@@ -391,7 +393,19 @@ WHERE
     await this.cashLog.save(log);
     try {
       const response = await this.apiClientAnor.post('/payment', payload);
-      const { result } = response.data;
+      const data = response.data;
+
+      // Agar data.error mavjud bo‘lsa va u object bo‘lsa va code mavjud bo‘lsa
+      if (
+        data?.error &&
+        typeof data.error === 'object' &&
+        'code' in data.error
+      ) {
+        throw new Error(JSON.stringify(data.error)); // bu catch blokga tushadi
+      }
+      const { result } = data;
+
+      // cashLog update
       await this.cashLog.update(
         { application_id: Number(uniqueNumDoc) },
         {
@@ -402,6 +416,7 @@ WHERE
           updatedAt: new Date(),
         },
       );
+      // banking update
       await this.bankingRepository.update(
         { backend_application_id: report.backend_application_id },
         {
@@ -416,6 +431,7 @@ WHERE
       );
       return response.data;
     } catch (error) {
+      // cashLog update
       await this.cashLog.update(
         { application_id: report.backend_application_id },
         {
@@ -424,6 +440,7 @@ WHERE
           updatedAt: new Date(),
         },
       );
+      // banking update
       await this.bankingRepository.update(
         { backend_application_id: report.backend_application_id },
         {
