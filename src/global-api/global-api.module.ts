@@ -1,3 +1,4 @@
+// global-api.module.ts
 import { Module, Global } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { AuthModule } from '../auth/auth.module';
@@ -8,11 +9,18 @@ import { getApiClient } from './axios';
   imports: [AuthModule],
   providers: [
     {
-      provide: 'API_CLIENT',
-      useFactory: async (authService: AuthService) => await getApiClient(authService),
+      provide: 'DAVR_API_CLIENT',
+      useFactory: async (authService: AuthService) =>
+        getApiClient(authService, process.env.DAVR_URL, 'prod', 'DAVRBANK'),
+      inject: [AuthService],
+    },
+    {
+      provide: 'ANOR_API_CLIENT',
+      useFactory: async (authService: AuthService) =>
+        getApiClient(authService, process.env.ANOR_URL, 'prod', 'ANORBANK'),
       inject: [AuthService],
     },
   ],
-  exports: ['API_CLIENT'],
+  exports: ['DAVR_API_CLIENT', 'ANOR_API_CLIENT'],
 })
 export class GlobalApiModule {}

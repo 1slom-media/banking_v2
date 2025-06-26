@@ -5,14 +5,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, MoreThan, Not, Repository } from 'typeorm';
 import { BankingTransactionEntity } from './entities/transaction.entity';
 import { plainToInstance } from 'class-transformer';
 import { BankingTransactionDto } from './dto/transaction.dto';
 import { validate } from 'class-validator';
 import { AllgoodPropService } from 'src/allgood-prop/allgood-prop.service';
 import { Cron } from '@nestjs/schedule';
-import { CreateDavrPayloadDto } from './dto/payload';
+import {
+  AccountTransferAnorDto,
+  CreateDavrPayloadDto,
+  GetCashQueryDto,
+} from './dto/payload';
 import { DavrPayloadEntity } from './entities/payload.entity';
 import { generateUniqueId } from '../utils/unique-id';
 import { CashLogEntity } from './entities/cashtx';
@@ -23,7 +27,9 @@ export class TransactionsService {
   constructor(
     @InjectDataSource('secondary')
     private readonly secondaryDataSource: DataSource,
-    @Inject('API_CLIENT') private readonly apiClient: any,
+    @Inject('DAVR_API_CLIENT') private readonly apiClient: any,
+    @Inject('ANOR_API_CLIENT')
+    private readonly apiClientAnor: any,
     @InjectRepository(BankingTransactionEntity, 'main')
     private readonly bankingRepository: Repository<BankingTransactionEntity>,
     @InjectRepository(DavrPayloadEntity, 'main')
@@ -36,6 +42,76 @@ export class TransactionsService {
   // getAll
   async find() {
     return this.bankingRepository.find();
+  }
+
+  // getAll cash panel
+  async getCash(params: GetCashQueryDto) {
+    const {
+      fromDate,
+      toDate,
+      status,
+      amount,
+      fromAccount,
+      toAccount,
+      who,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      page = 1,
+      limit = 20,
+    } = params;
+
+    const query = this.cashLog.createQueryBuilder('cash');
+
+    if (status) {
+      query.andWhere('cash.status = :status', { status });
+    }
+    // Filter by amount
+    if (amount) {
+      query.andWhere('cash.amount = :amount', { amount });
+    }
+
+    // Filter by fromAccount
+    if (fromAccount) {
+      query.andWhere('cash.fromAccount ILIKE :fromAccount', {
+        fromAccount: `%${fromAccount}%`,
+      });
+    }
+
+    // Filter by toAccount
+    if (toAccount) {
+      query.andWhere('cash.toAccount ILIKE :toAccount', {
+        toAccount: `%${toAccount}%`,
+      });
+    }
+
+    // Filter by who
+    if (who) {
+      query.andWhere('cash.who ILIKE :who', { who: `%${who}%` });
+    }
+
+    // Filter by date range
+    if (fromDate) {
+      query.andWhere('cash.createdAt >= :fromDate', { fromDate });
+    }
+    if (toDate) {
+      query.andWhere('cash.createdAt <= :toDate', { toDate });
+    }
+
+    // Sorting
+    query.orderBy(`cash.${sortBy}`, sortOrder);
+
+    // Pagination
+    query.skip((+page - 1) * +limit).take(+limit);
+
+    const [data, total] = await query.getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / +limit),
+    };
   }
 
   // get reports one day ago:: bir kun oldingi billinglarni olish
@@ -134,99 +210,6 @@ WHERE
     return [];
   }
 
-  // davrbank transaction metod ==>> ruchnoy pravodka
-  async sendDavrTransaction(data: CreateDavrPayloadDto, req: Request) {
-    const findLog = await this.cashLog.findOneBy({
-      application_id: Number(data.vnum_doc),
-    });
-    if (findLog && findLog.status !== 'failed') {
-      return {
-        success: false,
-        message: 'Ush tranzaksiya allaqachon mavjud',
-      };
-    }
-    const payload = {
-      vbranch: data.vbranch,
-      vaccount: data.vaccount,
-      vname_cl: data.vname_cl,
-      vinn_cl: data.vinn_cl,
-      vmfo_cr: data.vmfo_cr,
-      vaccount_cr: data.vaccount_cr,
-      vname_cr: data.vname_cr,
-      vinn_cr: data.vinn_cr,
-      vsumma: data.vsumma,
-      vnaz_pla: data.vnaz_pla,
-      vnum_doc: data.vnum_doc,
-      vcode_naz_pla: data.vcode_naz_pla,
-      vbudget_account: data.vbudget_account,
-      vbudget_inn: data.vbudget_inn,
-      vbudget_name: data.vbudget_name,
-      vusername: data.vusername || 'allgood',
-      vparentid: data.vparentid || 2905,
-    };
-    const log = {
-      application_id: Number(data.vnum_doc),
-      amount: data.vsumma,
-      numm_doc: Number(data.vnum_doc),
-      request: payload,
-      who: req.user.name,
-    };
-    await this.cashLog.save(log);
-    try {
-      const response = await this.apiClient.post(
-        '/api/v1.0/allgood/allepc',
-        payload,
-      );
-      const { result } = response.data;
-      await this.cashLog.update(
-        { application_id: Number(data.vnum_doc) },
-        {
-          response: response.data,
-          status: 'waiting',
-          vid_id: result.vidk,
-          updatedAt: new Date(),
-        },
-      );
-      const entityData = {
-        ...data,
-        response: response.data,
-        vid: result.vidk,
-        who: req.user.name,
-      };
-      const davrPay = this.davrPayloadRepository.create(entityData);
-      return await this.davrPayloadRepository.save(davrPay);
-    } catch (error) {
-      if (error.response) {
-        await this.cashLog.update(
-          { application_id: Number(data.vnum_doc) },
-          {
-            response: error.response?.data || error.message || error.stack,
-            status: 'failed',
-            updatedAt: new Date(),
-          },
-        );
-        // Formatlash va BadRequestException chiqarish
-        const formattedError = {
-          status: error.response?.status || 400,
-          message: error.response?.data?.detail || 'Unknown error occurred',
-          instance:
-            error.response?.data?.instance || '/api/v1.0/allgood/allepc',
-          success: false,
-        };
-        throw new BadRequestException(formattedError);
-      }
-
-      // Xatolik boshqa sabab bilan kelgan
-      const formattedError = {
-        status: 500,
-        message: error.message || 'An unexpected error occurred',
-        instance: '/api/v1.0/allgood/allepc',
-        success: false,
-      };
-      throw new BadRequestException(formattedError);
-    }
-  }
-
   // get davr by id status and update
   async findAndUpdateDavrStatus(id: number, type: string) {
     const response = await this.apiClient.get(
@@ -301,7 +284,227 @@ WHERE
     return response.data;
   }
 
-  // application_id bilan pravotka
+  // anorbank transaction metod ==>> ruchnoy pravodka
+  async sendAnorTransaction(data: AccountTransferAnorDto, req: Request) {
+    const recent = new Date();
+    recent.setMinutes(recent.getMinutes() - 3);
+    const existing = await this.cashLog.findOne({
+      where: {
+        who: req.user.name,
+        amount: data.amount,
+        toAccount: data.toAccount,
+        createdAt: MoreThan(recent),
+        status: Not('failed'),
+      },
+    });
+
+    if (existing) {
+      return {
+        success: false,
+        message:
+          'Ushbu summa bilan siz tranzaksiya amalga oshirgansiz! Ikki marta tolov bolmasligi uchun tekshiring agar hammasi tog`ri bolsa 3 daqiqadan song davom eting',
+      };
+    }
+    if (data.amount <= 0 || isNaN(data.amount)) {
+      throw new BadRequestException('Noto‘g‘ri summa');
+    }
+    const uniqueNumDoc = generateUniqueId();
+    //payload
+    const payload = {
+      id: Date.now().toString(),
+      jsonrpc: '2.0',
+      method: 'account.to.account.transfer',
+      params: {
+        request: {
+          agentTranId: uniqueNumDoc,
+          currency: 860, // UZS
+          from: {
+            account: data.fromAccount,
+            mfo: data.fromMfo,
+            name: data.fromName,
+            purposeId: '00668',
+            comment: data.comment,
+          },
+          to: {
+            account: data.toAccount,
+            mfo: data.toMfo,
+            name: data.toName,
+            purposeId: '00668',
+            comment: data.comment,
+          },
+          amout: data.amount * 100,
+        },
+      },
+    };
+    //create log
+    const log = {
+      application_id: Number(uniqueNumDoc),
+      amount: data.amount,
+      fromAccount: data.fromAccount,
+      toAccount: data.toAccount,
+      naz_pla: data.comment,
+      bank: 'ANORBANK',
+      numm_doc: Number(uniqueNumDoc),
+      request: payload,
+      who: req.user.name,
+    };
+    await this.cashLog.save(log);
+    try {
+      const response = await this.apiClientAnor.post('/payment', payload);
+      const { result } = response.data;
+      await this.cashLog.update(
+        { application_id: Number(uniqueNumDoc) },
+        {
+          response: response.data,
+          status: 'waiting',
+          vid_id: result?.recipient.data?.PC_ID,
+          bank_id: result?.bmId,
+          updatedAt: new Date(),
+        },
+      );
+    } catch (error) {
+      await this.cashLog.update(
+        { application_id: Number(uniqueNumDoc) },
+        {
+          status: 'failed',
+          response: error?.response?.data || error.message || 'Unknown error',
+          updatedAt: new Date(),
+        },
+      );
+
+      // Loglash
+      console.error(
+        'Anor transfer error:',
+        error?.response?.data || error.message,
+      );
+      throw new BadRequestException(
+        error?.response?.data?.error?.data || 'Bank bilan aloqa xatosi',
+      );
+    }
+  }
+
+  // anorbank aplication id
+  async sendAnorTransactionByAppId(id: number, req: Request) {
+    const allgoodProps = await this.allgoodPropRepository.findOneByBank(1);
+    if (!allgoodProps) {
+      throw new NotFoundException('Active rekvizitlar topilmadi');
+    }
+
+    const report = await this.bankingRepository.findOneBy({
+      backend_application_id: id,
+    });
+
+    if (!report) {
+      throw new NotFoundException('Ushbu id li billing topilmadi');
+    }
+
+    const findLog = await this.cashLog.findOneBy({
+      application_id: report.backend_application_id,
+    });
+
+    if (findLog && findLog.status !== 'failed') {
+      return {
+        success: false,
+        message: 'Ush tranzaksiya allaqachon mavjud',
+      };
+    }
+    const uniqueNumDoc = generateUniqueId();
+    const payload = {
+      id: Date.now().toString(),
+      jsonrpc: '2.0',
+      method: 'account.to.account.transfer',
+      params: {
+        request: {
+          agentTranId: uniqueNumDoc,
+          currency: 860, // UZS
+          from: {
+            account: allgoodProps.account,
+            mfo: allgoodProps.mfo,
+            name: allgoodProps.name,
+            purposeId: '00668',
+            comment: `за услуги сог договора ${report?.contract_no} по рассрочки "${report?.category}" ${report?.name} ID${report?.backend_application_id}`,
+          },
+          to: {
+            account: report.bank_account,
+            mfo: report.mfo,
+            name: report.merchant_name,
+            purposeId: '00668',
+            comment: `за услуги сог договора ${report?.contract_no} по рассрочки "${report?.category}" ${report?.name} ID${report?.backend_application_id}`,
+          },
+          amout: parseFloat(report.price),
+        },
+      },
+    };
+    const log = {
+      application_id: report.backend_application_id,
+      amount: parseFloat(report.price),
+      fromAccount: allgoodProps.account,
+      toAccount: report.bank_account,
+      naz_pla: `за услуги сог договора ${report?.contract_no} по рассрочки "${report?.category}" ${report?.name} ID${report?.backend_application_id}`,
+      bank: 'ANORBANK',
+      numm_doc: uniqueNumDoc,
+      request: payload,
+      who: req.user.name,
+    };
+    await this.cashLog.save(log);
+    try {
+      const response = await this.apiClientAnor.post('/payment', payload);
+      const { result } = response.data;
+      await this.cashLog.update(
+        { application_id: Number(uniqueNumDoc) },
+        {
+          response: response.data,
+          status: 'waiting',
+          vid_id: result?.recipient.data?.PC_ID,
+          bank_id: result?.bmId,
+          updatedAt: new Date(),
+        },
+      );
+      await this.bankingRepository.update(
+        { backend_application_id: report.backend_application_id },
+        {
+          vid_id: result?.recipient.data?.PC_ID,
+          bank_id: result?.bmId,
+          response: response.data,
+          p_status: 'waiting',
+          numm_doc: uniqueNumDoc,
+          updatedAt: new Date(),
+          who: req.user.name,
+        },
+      );
+      return response.data;
+    } catch (error) {
+      await this.cashLog.update(
+        { application_id: Number(uniqueNumDoc) },
+        {
+          status: 'failed',
+          response: error?.response?.data || error.message || 'Unknown error',
+          updatedAt: new Date(),
+        },
+      );
+      await this.bankingRepository.update(
+        { backend_application_id: report.backend_application_id },
+        {
+          response: error?.response?.data || error.message || 'Unknown error',
+          p_status: 'failed',
+          numm_doc: uniqueNumDoc,
+          updatedAt: new Date(),
+          who: req.user.name,
+        },
+      );
+
+      // Loglash
+      console.error(
+        'Anor transfer error:',
+        error?.response?.data || error.message,
+      );
+      throw new BadRequestException(
+        error?.response?.data?.error?.data || 'Bank bilan aloqa xatosi',
+      );
+    }
+  }
+
+  // application_id bilan pravotka by Davr
   async sendDavrTransactionByAppId(id: number, req: Request) {
     const allgoodProps = await this.allgoodPropRepository.findOneByBank(1);
     if (!allgoodProps) {
@@ -353,6 +556,10 @@ WHERE
     const log = {
       application_id: report.backend_application_id,
       amount: parseFloat(report.price),
+      fromAccount: payload.vaccount,
+      toAccount: payload.vaccount_cr,
+      naz_pla: payload.vnaz_pla,
+      bank: 'DAVRBANK',
       numm_doc: uniqueNumDoc,
       request: payload,
       who: req.user.name,
@@ -423,6 +630,103 @@ WHERE
         throw new BadRequestException(formattedError);
       }
 
+      const formattedError = {
+        status: 500,
+        message: error.message || 'An unexpected error occurred',
+        instance: '/api/v1.0/allgood/allepc',
+        success: false,
+      };
+      throw new BadRequestException(formattedError);
+    }
+  }
+
+  // davrbank transaction metod ==>> ruchnoy pravodka
+  async sendDavrTransaction(data: CreateDavrPayloadDto, req: Request) {
+    const findLog = await this.cashLog.findOneBy({
+      application_id: Number(data.vnum_doc),
+    });
+    if (findLog && findLog.status !== 'failed') {
+      return {
+        success: false,
+        message: 'Ush tranzaksiya allaqachon mavjud',
+      };
+    }
+    const payload = {
+      vbranch: data.vbranch,
+      vaccount: data.vaccount,
+      vname_cl: data.vname_cl,
+      vinn_cl: data.vinn_cl,
+      vmfo_cr: data.vmfo_cr,
+      vaccount_cr: data.vaccount_cr,
+      vname_cr: data.vname_cr,
+      vinn_cr: data.vinn_cr,
+      vsumma: data.vsumma,
+      vnaz_pla: data.vnaz_pla,
+      vnum_doc: data.vnum_doc,
+      vcode_naz_pla: data.vcode_naz_pla,
+      vbudget_account: data.vbudget_account,
+      vbudget_inn: data.vbudget_inn,
+      vbudget_name: data.vbudget_name,
+      vusername: data.vusername || 'allgood',
+      vparentid: data.vparentid || 2905,
+    };
+    const log = {
+      application_id: Number(data.vnum_doc),
+      amount: data.vsumma,
+      fromAccount: data.vaccount,
+      toAccount: data.vaccount_cr,
+      naz_pla: data.vnaz_pla,
+      bank: 'DAVRBANK',
+      numm_doc: Number(data.vnum_doc),
+      request: payload,
+      who: req.user.name,
+    };
+    await this.cashLog.save(log);
+    try {
+      const response = await this.apiClient.post(
+        '/api/v1.0/allgood/allepc',
+        payload,
+      );
+      const { result } = response.data;
+      await this.cashLog.update(
+        { application_id: Number(data.vnum_doc) },
+        {
+          response: response.data,
+          status: 'waiting',
+          vid_id: result.vidk,
+          updatedAt: new Date(),
+        },
+      );
+      const entityData = {
+        ...data,
+        response: response.data,
+        vid: result.vidk,
+        who: req.user.name,
+      };
+      const davrPay = this.davrPayloadRepository.create(entityData);
+      return await this.davrPayloadRepository.save(davrPay);
+    } catch (error) {
+      if (error.response) {
+        await this.cashLog.update(
+          { application_id: Number(data.vnum_doc) },
+          {
+            response: error.response?.data || error.message || error.stack,
+            status: 'failed',
+            updatedAt: new Date(),
+          },
+        );
+        // Formatlash va BadRequestException chiqarish
+        const formattedError = {
+          status: error.response?.status || 400,
+          message: error.response?.data?.detail || 'Unknown error occurred',
+          instance:
+            error.response?.data?.instance || '/api/v1.0/allgood/allepc',
+          success: false,
+        };
+        throw new BadRequestException(formattedError);
+      }
+
+      // Xatolik boshqa sabab bilan kelgan
       const formattedError = {
         status: 500,
         message: error.message || 'An unexpected error occurred',

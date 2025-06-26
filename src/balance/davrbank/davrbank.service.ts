@@ -11,7 +11,7 @@ export class DavrbankBalanceService {
   constructor(
     @InjectRepository(DavrBalanceEntity, 'main')
     private readonly balanceRepo: Repository<DavrBalanceEntity>,
-    @Inject('API_CLIENT') private readonly apiClient: any,
+    @Inject('DAVR_API_CLIENT') private readonly apiClient: any,
   ) {}
 
   async getDavrBalance() {

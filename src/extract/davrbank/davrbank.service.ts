@@ -11,7 +11,7 @@ export class DavrbankExtractService {
   constructor(
     @InjectRepository(DavrExtractEntity, 'main')
     private readonly extractRepo: Repository<DavrExtractEntity>,
-    @Inject('API_CLIENT') private readonly apiClient: any,
+    @Inject('DAVR_API_CLIENT') private readonly apiClient: any,
   ) {}
 
   async fetchExtract(data: FetchDavrExtractDto) {

@@ -20,6 +20,8 @@ import { AllgoodPropEntity } from './allgood-prop/entities/allgood-prop';
 import { DavrPayloadEntity } from './transactions/entities/payload.entity';
 import { CashLogEntity } from './transactions/entities/cashtx';
 import { UserEntity } from './auth/entities/user.entity';
+import { AnorBalanceEntity } from './balance/anorbank/entities/balance.entity';
+import { AnorbankModule } from './anorbank/anorbank.module';
 
 @Module({
   imports: [
@@ -36,6 +38,7 @@ import { UserEntity } from './auth/entities/user.entity';
       database: process.env.PG_DATABASE,
       entities: [
         AuthEntity,
+        AnorBalanceEntity,
         DavrBalanceEntity,
         DavrExtractEntity,
         DavrPaymentsEntity,
@@ -67,6 +70,7 @@ import { UserEntity } from './auth/entities/user.entity';
     PaymentsModule,
     TransactionsModule,
     AllgoodPropModule,
+    AnorbankModule,
   ],
   controllers: [AppController],
   providers: [AppService],

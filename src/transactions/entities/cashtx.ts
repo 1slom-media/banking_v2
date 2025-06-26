@@ -21,6 +21,18 @@ export class CashLogEntity {
   amount: number;
 
   @Column({ nullable: true })
+  bank: string;
+
+  @Column({ nullable: true })
+  fromAccount: string;
+
+  @Column({ nullable: true })
+  toAccount: string;
+
+  @Column({ nullable: true })
+  naz_pla: string;
+
+  @Column({ nullable: true })
   vid_id: number;
 
   @Column({ nullable: true, type: 'bigint' })

@@ -11,7 +11,7 @@ export class DavrbankPaymentService {
   constructor(
     @InjectRepository(DavrPaymentsEntity, 'main')
     private readonly paymentRepo: Repository<DavrPaymentsEntity>,
-    @Inject('API_CLIENT') private readonly apiClient: any,
+    @Inject('DAVR_API_CLIENT') private readonly apiClient: any,
   ) {}
 
   async getDavrStatus(id: number) {

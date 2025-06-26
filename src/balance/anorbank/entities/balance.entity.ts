@@ -7,32 +7,30 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('auth')
-export class AuthEntity {
+@Entity('anor_balance')
+export class AnorBalanceEntity {
   @PrimaryGeneratedColumn()
   id: string;
 
   @Column({ type: 'varchar' })
   @IsString()
-  access_token: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  @IsString()
-  provider: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  @IsString()
-  type: string;
+  account: string;
 
   @Column({ type: 'varchar' })
   @IsString()
-  refresh_token: string;
+  name: string;
 
-  @Column({ type: 'varchar', nullable: true })
-  expires_in_anor: number;
+  @Column({ type: 'varchar' })
+  @IsString()
+  bank: string;
 
-  @Column({ type: 'varchar', nullable: true })
-  refresh_expires_in_anor: number;
+  @Column({ type: 'varchar' })
+  @IsString()
+  mfo: string;
+
+  @Column({ type: 'bigint' })
+  @IsString()
+  balance: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

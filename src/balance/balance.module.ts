@@ -5,6 +5,7 @@ import { DavrbankModule } from './davrbank/davrbank.module';
 import { DavrbankBalanceService } from './davrbank/davrbank.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DavrBalanceEntity } from './davrbank/entities/balance.entity';
+import { AnorbankModule } from './anorbank/anorbank.module';
 
 @Module({
   controllers: [BalanceController],
@@ -12,6 +13,7 @@ import { DavrBalanceEntity } from './davrbank/entities/balance.entity';
   imports: [
     TypeOrmModule.forFeature([DavrBalanceEntity], 'main'),
     DavrbankModule,
+    AnorbankModule,
   ],
 })
 export class BalanceModule {}

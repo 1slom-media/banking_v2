@@ -1,7 +1,20 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { CreateDavrPayloadDto } from './dto/payload';
+import {
+  AccountTransferAnorDto,
+  CreateDavrPayloadDto,
+  GetCashQueryDto,
+} from './dto/payload';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { Request } from 'express';
 
@@ -11,6 +24,11 @@ import { Request } from 'express';
 export class TransactionsController {
   constructor(private readonly billingReportService: TransactionsService) {}
 
+  @ApiOperation({ summary: 'Sistamadan otgan barcha operatsiyalar' })
+  @Get('billing')
+  async getCash(@Query() query: GetCashQueryDto) {
+    return this.billingReportService.getCash(query);
+  }
   @ApiOperation({ summary: 'Bir kun oldingi reportsdan clon olish' })
   @Get('get')
   async getReports() {
@@ -35,15 +53,37 @@ export class TransactionsController {
     return this.billingReportService.findAndUpdateDavrStatus(id, type);
   }
 
-  @ApiOperation({ summary: "Application id bo`yicha tranzaktsiya o'tkazish" })
+  @ApiOperation({
+    summary: "Application id bo`yicha tranzaktsiya o'tkazish DAVRBANK",
+  })
   @Get('davr/create/:id')
-  async createDavrByAppId(@Param('id') id: number,@Req() req: Request) {
-    return this.billingReportService.sendDavrTransactionByAppId(id,req);
+  async createDavrByAppId(@Param('id') id: number, @Req() req: Request) {
+    return this.billingReportService.sendDavrTransactionByAppId(id, req);
+  }
+
+  @ApiOperation({
+    summary: "Application id bo`yicha tranzaktsiya o'tkazish ANORBANK",
+  })
+  @Get('anor/create/:id')
+  async createAnorByAppId(@Param('id') id: number, @Req() req: Request) {
+    return this.billingReportService.sendAnorTransactionByAppId(id, req);
   }
 
   @ApiOperation({ summary: 'Ruchnoy tranzaktsiya yaratish' })
   @Post('davr/send')
-  async davrSendTransaction(@Body() data: CreateDavrPayloadDto,@Req() req: Request) {
-    return this.billingReportService.sendDavrTransaction(data,req);
+  async davrSendTransaction(
+    @Body() data: CreateDavrPayloadDto,
+    @Req() req: Request,
+  ) {
+    return this.billingReportService.sendDavrTransaction(data, req);
+  }
+
+  @ApiOperation({ summary: 'Ruchnoy tranzaktsiya yaratish' })
+  @Post('anor/send')
+  async anorSendTransaction(
+    @Body() data: AccountTransferAnorDto,
+    @Req() req: Request,
+  ) {
+    return this.billingReportService.sendAnorTransaction(data, req);
   }
 }
