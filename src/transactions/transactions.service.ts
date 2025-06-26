@@ -272,7 +272,7 @@ WHERE
             purposeId: '00668',
             comment: data.comment,
           },
-          amout: data.amount * 100,
+          amount: data.amount * 100,
         },
       },
     };
@@ -326,7 +326,7 @@ WHERE
 
   // anorbank aplication id
   async sendAnorTransactionByAppId(id: number, req: Request) {
-    const allgoodProps = await this.allgoodPropRepository.findOneByBank(1);
+    const allgoodProps = await this.allgoodPropRepository.findOneByBank(2);
     if (!allgoodProps) {
       throw new NotFoundException('Active rekvizitlar topilmadi');
     }
@@ -372,7 +372,7 @@ WHERE
             purposeId: '00668',
             comment: `за услуги сог договора ${report?.contract_no} по рассрочки "${report?.category}" ${report?.name} ID${report?.backend_application_id}`,
           },
-          amout: parseFloat(report.price),
+          amount: parseFloat(report.price),
         },
       },
     };
@@ -417,7 +417,7 @@ WHERE
       return response.data;
     } catch (error) {
       await this.cashLog.update(
-        { application_id: Number(uniqueNumDoc) },
+        { application_id: report.backend_application_id },
         {
           status: 'failed',
           response: error?.response?.data || error.message || 'Unknown error',
