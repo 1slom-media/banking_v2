@@ -103,7 +103,7 @@ export class AuthService {
 
   async refreshTokenDavr() {
     const auth = await this.authRepo.findOneBy({
-      type: 'test',
+      type: 'prod',
       provider: 'DAVRBANK',
     });
 
