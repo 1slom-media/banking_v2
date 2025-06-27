@@ -350,13 +350,18 @@ WHERE
       };
     }
     const uniqueNumDoc = generateUniqueId();
+    const cleanedMerchantName =
+      typeof report.merchant_name === 'string'
+        ? report.merchant_name.replace(/«/g, '"').replace(/»/g, '"')
+        : '';
+
     const payload = {
       id: Date.now().toString(),
       jsonrpc: '2.0',
       method: 'account.to.account.transfer',
       params: {
         request: {
-          agentTranId: uniqueNumDoc,
+          agentTranId: String(uniqueNumDoc),
           currency: 860, // UZS
           from: {
             account: allgoodProps.account,
@@ -368,7 +373,7 @@ WHERE
           to: {
             account: report.bank_account,
             mfo: report.mfo,
-            name: report.merchant_name,
+            name: cleanedMerchantName,
             purposeId: '00668',
             comment: `за услуги сог договора ${report?.contract_no} по рассрочки "${report?.category}" ${report?.name} ID${report?.backend_application_id}`,
           },
@@ -376,8 +381,8 @@ WHERE
         },
       },
     };
-    console.log(payload,'sendAnorTransactionByAppId payload');
-    
+    console.log(payload, 'sendAnorTransactionByAppId payload');
+
     const log = {
       application_id: report.backend_application_id,
       amount: parseFloat(report.price),
@@ -407,7 +412,7 @@ WHERE
 
       // cashLog update
       await this.cashLog.update(
-        { application_id: Number(uniqueNumDoc) },
+        { application_id: report.backend_application_id },
         {
           response: response.data,
           status: 'waiting',
@@ -720,7 +725,9 @@ WHERE
         },
       },
     };
+    console.log(payload, 'py status');
     const response = await this.apiClientAnor.post('/services', payload);
+    console.log(response, 'res status');
     const result = response.data?.result[0];
     if (!result || typeof result.STATE !== 'number') {
       throw new Error('Invalid response from ANOR API');
