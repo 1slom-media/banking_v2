@@ -303,6 +303,14 @@ WHERE
           updatedAt: new Date(),
         },
       );
+      const logRes = await this.cashLog.findOneBy({
+        application_id: uniqueNumDoc,
+      });
+      return {
+        numm_doc: uniqueNumDoc,
+        bank: 'ANORBANK',
+        status: logRes.status,
+      };
     } catch (error) {
       await this.cashLog.update(
         { application_id: Number(uniqueNumDoc) },
@@ -434,7 +442,15 @@ WHERE
           who: req.user.name,
         },
       );
-      return response.data;
+      const logRes = await this.cashLog.findOneBy({
+        application_id: report.backend_application_id,
+      });
+      return {
+        numm_doc: uniqueNumDoc,
+        bank: 'ANORBANK',
+        status: logRes.status,
+        application_id: report.backend_application_id,
+      };
     } catch (error) {
       // cashLog update
       await this.cashLog.update(
@@ -559,7 +575,15 @@ WHERE
           who: req.user.name,
         },
       );
-      return response.data;
+      const logRes = await this.cashLog.findOneBy({
+        application_id: report.backend_application_id,
+      });
+      return {
+        numm_doc: uniqueNumDoc,
+        bank: 'DAVRBANK',
+        status: logRes.status,
+        application_id: report.backend_application_id,
+      };
     } catch (error) {
       if (error.response) {
         const formattedError = {
@@ -606,15 +630,29 @@ WHERE
 
   // davrbank transaction metod ==>> ruchnoy pravodka
   async sendDavrTransaction(data: CreateDavrPayloadDto, req: Request) {
-    const findLog = await this.cashLog.findOneBy({
-      application_id: Number(data.vnum_doc),
+    const recent = new Date();
+    recent.setMinutes(recent.getMinutes() - 3);
+    const existing = await this.cashLog.findOne({
+      where: {
+        who: req.user.name,
+        amount: data.vsumma,
+        toAccount: data.vaccount_cr,
+        createdAt: MoreThan(recent),
+        status: Not('failed'),
+      },
     });
-    if (findLog && findLog.status !== 'failed') {
+
+    if (existing) {
       return {
         success: false,
-        message: 'Ush tranzaksiya allaqachon mavjud',
+        message:
+          'Ushbu summa bilan siz tranzaksiya amalga oshirgansiz! Ikki marta tolov bolmasligi uchun tekshiring agar hammasi tog`ri bolsa 3 daqiqadan song davom eting',
       };
     }
+    if (data.vsumma <= 0 || isNaN(data.vsumma)) {
+      throw new BadRequestException('Noto‘g‘ri summa');
+    }
+    const uniqueNumDoc = generateUniqueId();
     const payload = {
       vbranch: data.vbranch,
       vaccount: data.vaccount,
@@ -626,22 +664,22 @@ WHERE
       vinn_cr: data.vinn_cr,
       vsumma: data.vsumma,
       vnaz_pla: data.vnaz_pla,
-      vnum_doc: data.vnum_doc,
-      vcode_naz_pla: data.vcode_naz_pla,
-      vbudget_account: data.vbudget_account,
-      vbudget_inn: data.vbudget_inn,
-      vbudget_name: data.vbudget_name,
+      vnum_doc: String(uniqueNumDoc),
+      vcode_naz_pla: data.vcode_naz_pla || '00668',
+      vbudget_account: data.vbudget_account || '',
+      vbudget_inn: data.vbudget_inn || '',
+      vbudget_name: data.vbudget_name || '',
       vusername: data.vusername || 'allgood',
       vparentid: data.vparentid || 2905,
     };
     const log = {
-      application_id: Number(data.vnum_doc),
+      application_id: uniqueNumDoc,
       amount: data.vsumma,
       fromAccount: data.vaccount,
       toAccount: data.vaccount_cr,
       naz_pla: data.vnaz_pla,
       bank: 'DAVRBANK',
-      numm_doc: Number(data.vnum_doc),
+      numm_doc: uniqueNumDoc,
       request: payload,
       who: req.user.name,
     };
@@ -653,7 +691,7 @@ WHERE
       );
       const { result } = response.data;
       await this.cashLog.update(
-        { application_id: Number(data.vnum_doc) },
+        { application_id: uniqueNumDoc },
         {
           response: response.data,
           status: 'waiting',
@@ -666,13 +704,22 @@ WHERE
         response: response.data,
         vid: result.vidk,
         who: req.user.name,
+        vnum_doc: uniqueNumDoc,
       };
       const davrPay = this.davrPayloadRepository.create(entityData);
-      return await this.davrPayloadRepository.save(davrPay);
+      await this.davrPayloadRepository.save(davrPay);
+      const logRes = await this.cashLog.findOneBy({
+        application_id: uniqueNumDoc,
+      });
+      return {
+        numm_doc: uniqueNumDoc,
+        bank: 'DAVRBANK',
+        status: logRes.status,
+      };
     } catch (error) {
       if (error.response) {
         await this.cashLog.update(
-          { application_id: Number(data.vnum_doc) },
+          { application_id: uniqueNumDoc },
           {
             response: error.response?.data || error.message || error.stack,
             status: 'failed',

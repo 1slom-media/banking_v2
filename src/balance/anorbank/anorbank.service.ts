@@ -13,7 +13,7 @@ export class AnorbankBalanceService {
   ) {}
 
   async getDavrBalance() {
-    return this.balanceRepo.find();
+    return this.balanceRepo.find({ order: { id: 'DESC' } });
   }
 
   async updateAnorBalance() {

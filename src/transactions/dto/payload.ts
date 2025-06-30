@@ -67,12 +67,8 @@ export class CreateDavrPayloadDto {
   @IsString()
   vnaz_pla: string;
 
-  @ApiProperty({ description: 'Document number', example: 'ALG-ID123' })
-  @IsNumber()
-  vnum_doc: number;
-
   @ApiProperty({ description: 'Payment code', example: '00668' })
-  @IsString()
+  @IsOptional()
   vcode_naz_pla: string;
 
   @ApiProperty({
